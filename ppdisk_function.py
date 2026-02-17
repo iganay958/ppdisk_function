@@ -145,6 +145,9 @@ def deproject_disk(data, inclination_deg, position_angle_deg):
 
 def calculate_radial_profile(data, r_min, r_max, pa_min, pa_max, center=None, num_bins=100):
     """
+
+    Note: now in this function, the PA starts from the west, the same as polar coordination.
+    
     Draw the radial profile of a protoplanetary disk and return the standard deviations.
     
     Parameters:
@@ -209,6 +212,46 @@ def calculate_radial_profile(data, r_min, r_max, pa_min, pa_max, center=None, nu
 # Example usage:
 # Assuming 'disk_data' is a 2D numpy array representing the protoplanetary disk
 # r_bin_centers, profile, profile_std = draw_radial_profile(disk_data, 10, 100, 0, 360)
+
+def plot_central_area(fits_file, title, arcsec=4, beampostion=0.4):
+    """
+    This function is used to draw the central x (default 4) arcseconds of one fits file of ALMA images, useful for quick check and generating images for publication
+
+    """
+    
+    # Load the FITS file
+    with fits.open(fits_file) as hdul:
+        if hdul[0].data.ndim == 4:
+            data = hdul[0].data[0][0]
+        else:
+            data = hdul[0].data
+        header = hdul[0].header
+
+    # Read the pixel scale from the header
+    pixel_scale = np.abs(header['CDELT2'])  # Pixel scale in degrees per pixel
+    pixel_scale_arcsec = pixel_scale * 3600  # Convert from degrees to arcseconds
+
+    # Calculate the number of pixels that correspond to the desired arcseconds
+    radius_pixels = arcsec / (2 * pixel_scale_arcsec)
+
+    # Find the center of the image
+    center_x, center_y = data.shape[1] // 2, data.shape[0] // 2
+
+    # Extract the central region
+    central_region = data[int(center_y - radius_pixels):int(center_y + radius_pixels),
+                          int(center_x - radius_pixels):int(center_x + radius_pixels)]
+    
+    ellipse = Ellipse(xy=(-arcsec*beampostion, -arcsec*beampostion), width=header['BMIN']*3600, height=header['BMAJ']*3600, angle=header['BPA'],
+                      fill=True, color='white', alpha=0.7)
+
+    # Plot the central region
+    plt.imshow(central_region, origin="lower", extent=[-arcsec/2,arcsec/2,-arcsec/2,arcsec/2])
+    plt.xlabel("R.A.(arcsec)")
+    plt.ylabel("Dec. (arcsec)")
+    plt.gca().add_patch(ellipse)
+    plt.colorbar(label="Jy/beam")
+    plt.title(title)
+    plt.show()
 
 
 
